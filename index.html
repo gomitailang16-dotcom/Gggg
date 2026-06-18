@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>YouTube同時視聴＆チャット</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; text-align: center; background-color: #f0f2f5; }
+      #chat-container { max-width: 600px; margin: 20px auto; text-align: left; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+      #messages { list-style-type: none; margin: 0 0 20px 0; padding: 0; height: 150px; overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; }
+      #messages li { padding: 8px; margin-bottom: 5px; background-color: #f4f4f4; border-radius: 4px; }
+      .input-group { margin-bottom: 15px; }
+      input { padding: 10px; width: calc(100% - 90px); border: 1px solid #ccc; border-radius: 4px; }
+      button { padding: 10px 20px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+      iframe { border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); max-width: 100%; }
+
+      /* 【追加】右上の再起動用ボタンのデザイン */
+      #killBtn {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        background-color: #dc3545;
+        color: white;
+        font-weight: bold;
+        z-index: 1000;
+      }
+      #killBtn:hover { background-color: #c82333; }
+    </style>
+  </head>
+  <body>
+    <button id="killBtn">サーバー再起動(停止)</button>
+
+    <h2>YouTube 同時視聴ルーム</h2>
+    
+    <div class="input-group">
+      <input id="videoIdInput" autocomplete="off" placeholder="YouTubeの動画ID (例: dQw4w9WgXcQ)" />
+      <button id="changeVideoBtn">動画切替</button>
+      <p style="font-size: 12px; color: gray;">※URLの「v=」の後ろにある英数字を入力してください</p>
+    </div>
+    
+    <iframe id="ytplayer" type="text/html" width="640" height="360"
+      src="https://www.youtube.com/embed/M7lc1UVf-VE?autoplay=1"
+      frameborder="0" allowfullscreen></iframe>
+
+    <div id="chat-container">
+      <ul id="messages"></ul>
+      <form id="form" action="">
+        <input id="input" autocomplete="off" placeholder="チャットを入力..." />
+        <button>送信</button>
+      </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      
+      const form = document.getElementById('form');
+      const input = document.getElementById('input');
+      const messages = document.getElementById('messages');
+      const videoIdInput = document.getElementById('videoIdInput');
+      const changeVideoBtn = document.getElementById('changeVideoBtn');
+      const ytplayer = document.getElementById('ytplayer');
+      const killBtn = document.getElementById('killBtn'); // 【追加】
+
+      // --- サーバー停止（再起動）の処理 ---
+      killBtn.addEventListener('click', function() {
+        // 確認メッセージを出す
+        const isYes = confirm('本当にサーバーを停止（再起動）しますか？');
+        if (isYes) {
+          socket.emit('kill server'); // サーバーに停止命令を送る
+          alert('サーバーを停止しました。ターミナルから「node index.js」で再起動してください。');
+        }
+      });
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (input.value) {
+          socket.emit('chat message', input.value);
+          input.value = '';
+        }
+      });
+
+      socket.on('chat message', function(msg) {
+        const item = document.createElement('li');
+        item.textContent = msg;
+        messages.appendChild(item);
+        messages.scrollTop = messages.scrollHeight;
+      });
+
+      changeVideoBtn.addEventListener('click', function() {
+        const videoId = videoIdInput.value;
+        if (videoId) {
+          socket.emit('change video', videoId);
+          videoIdInput.value = '';
+        }
+      });
+
+      socket.on('change video', function(videoId) {
+        ytplayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        const item = document.createElement('li');
+        item.textContent = `📢 動画が変更されました！`;
+        item.style.backgroundColor = '#e8f4fd';
+        messages.appendChild(item);
+      });
+    </script>
+  </body>
+</html>
